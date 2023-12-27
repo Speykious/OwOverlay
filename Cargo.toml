@@ -1,0 +1,16 @@
+[package]
+name = "owoverlay"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gl = "0.14.0"
+glam = "0.25.0"
+glutin = "0.31.2"
+glutin-winit = "0.4.2"
+raw-window-handle = "0.5.2"
+winit = { version = "0.29.7", features = ["rwh_05"] }
+
+[dependencies.loki-draw]
+git = "https://github.com/loki-chat/loki-draw"
+rev = "5523902"
