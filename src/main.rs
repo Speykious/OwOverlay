@@ -260,11 +260,13 @@ impl Scene for KeyOverlayScene {
 #[command(propagate_version = true)]
 struct Cli {
 	#[arg(short, long, help = "Path to the config")]
-	config: Option<PathBuf>,
+	config_path: Option<PathBuf>,
+	#[arg(short, long, help = "Name of a config stored in the config directory")]
+	preset: Option<PathBuf>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-	let Cli { config } = Cli::parse();
+	let Cli { config_path, preset } = Cli::parse();
 
 	let config_dir = dirs::config_dir()
 		.expect("You don't have a config directory???")
@@ -272,7 +274,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	fs::create_dir_all(&config_dir)?;
 
-	let config_path = config.unwrap_or_else(|| config_dir.join("cowonfig.toml"));
+	let config_path = match (config_path, preset) {
+		(Some(_), Some(_)) => panic!("Can't specify the config path and a preset at the same time!"),
+		(Some(config_path), None) => config_path,
+		(None, Some(preset)) => config_dir.join(preset).with_extension("toml"),
+		(None, None) => config_dir.join("cowonfig.toml"),
+	};
 
 	let config = match fs::read_to_string(&config_path) {
 		Ok(c) => toml::from_str(&c)?,
