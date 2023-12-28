@@ -1,13 +1,23 @@
 speed = 727
+display_keys = false
+display_counters = false
 
 [[columns]]
 key = "KeyQ"
+color = 0xff6376
+border_color = 0xff6376
 
 [[columns]]
 key = "KeyW"
+color = 0x63ffec
+border_color = 0x63ffec
 
 [[columns]]
 key = "LeftBracket"
+color = 0x63ffec
+border_color = 0x63ffec
 
 [[columns]]
 key = "RightBracket"
+color = 0xff6376
+border_color = 0xff6376

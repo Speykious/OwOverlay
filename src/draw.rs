@@ -33,18 +33,18 @@ impl Anchor {
 	pub const BR: Anchor = Anchor(Vec2::new(1.0, 1.0));
 }
 
-pub fn center_from(pos: Vec2, size: f32, anchor: Anchor) -> Vec2 {
+pub fn center_from(pos: Vec2, size: Vec2, anchor: Anchor) -> Vec2 {
 	Vec2 {
-		x: pos.x - size * (1. - anchor.x),
-		y: pos.y - size * anchor.y,
+		x: pos.x - size.x * (1. - anchor.x),
+		y: pos.y - size.y * anchor.y,
 	}
 }
 
-pub fn square(center: Vec2, size: f32) -> Rect {
+pub fn rect(center: Vec2, size: Vec2) -> Rect {
 	Rect {
 		x: center.x,
 		y: center.y,
-		w: size,
-		h: size,
+		w: size.x,
+		h: size.y,
 	}
 }

@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::sync::mpsc;
 use std::time::SystemTime;
-use std::{fs, thread};
+use std::{fs, io, thread};
 
-use config::Config;
-use draw::{center_from, square, Anchor};
+use config::{default_config, ColumnProps, Config};
+use draw::{center_from, rect, Anchor};
 use glam::{vec2, Vec2};
 use key::{display_key, OwoKey};
 use loki_draw::drawer::{Drawer, RectBlueprint, TextBlueprint};
@@ -33,6 +33,7 @@ struct KeyColumn {
 	pub key: rdev::Key,
 	pub count: u64,
 	pub pressed: bool,
+	pub props: ColumnProps,
 	pub times: VecDeque<SystemTime>,
 }
 
@@ -44,11 +45,12 @@ impl fmt::Display for KeyColumn {
 }
 
 impl KeyColumn {
-	pub fn new(key: rdev::Key) -> Self {
+	pub fn new(key: rdev::Key, props: ColumnProps) -> Self {
 		Self {
 			key,
 			count: 0,
 			pressed: false,
+			props,
 			times: VecDeque::with_capacity(1024),
 		}
 	}
@@ -81,13 +83,19 @@ struct KeyOverlayScene {
 	default_font: Font<'static>,
 	keyboard_rx: mpsc::Receiver<KeyEvent>,
 	now: SystemTime,
+
 	speed: f32,
+	display_keys: bool,
+	display_counters: bool,
+	key_spacing: f32,
+	default_key_width: f32,
+	key_height: f32,
 }
 
 impl KeyOverlayScene {
 	fn new(
 		keyboard_rx: mpsc::Receiver<KeyEvent>,
-		speed: f32,
+		config: &Config,
 		key_columns: impl IntoIterator<Item = KeyColumn>,
 	) -> Self {
 		let mut keys = Vec::new();
@@ -106,7 +114,13 @@ impl KeyOverlayScene {
 			default_font: Font::from_data(ROBOTO_FONT),
 			keyboard_rx,
 			now: SystemTime::now(),
-			speed,
+
+			speed: config.speed as f32,
+			display_keys: config.display_keys,
+			display_counters: config.display_counters,
+			key_spacing: config.key_spacing as f32,
+			default_key_width: config.default_key_width as f32,
+			key_height: config.key_height as f32,
 		}
 	}
 
@@ -130,8 +144,6 @@ impl Scene for KeyOverlayScene {
 			if column.pressed != key_event.pressed {
 				column.toggle_key(key_event.time);
 			}
-
-			println!("{}", column);
 		}
 
 		self.now = SystemTime::now();
@@ -141,8 +153,8 @@ impl Scene for KeyOverlayScene {
 		drawer.clear();
 		drawer.begin_frame();
 		{
-			let key_size = 100.;
-			let spacing = 10.;
+			let key_size = vec2(self.default_key_width, self.key_height);
+			let spacing = self.key_spacing;
 			let bottom_y = viewport.y - 30.;
 			let n_columns = self.columns.len() as f32;
 			let even_columns = self.columns.len() % 2 == 0;
@@ -151,21 +163,21 @@ impl Scene for KeyOverlayScene {
 				let column = self.columns.get(key).unwrap();
 
 				let color = match column.pressed {
-					true => 0x555555,
+					true => column.props.hover_color,
 					false => 0x111111,
 				};
 
 				let i = if even_columns { i as f32 + 0.5 } else { i as f32 };
-				let x_offset = (i - n_columns / 2.) * (key_size + spacing / 2.);
+				let x_offset = (i - n_columns / 2.) * (key_size.x + spacing / 2.);
 				let key_pos = vec2(viewport.x / 2. + x_offset, bottom_y);
 
 				let center_pos = center_from(key_pos, key_size, Anchor::BC);
 
-				// key square
+				// key rectangle
 				drawer.draw_rect(&RectBlueprint {
-					rect: square(center_pos, key_size),
+					rect: rect(center_pos, key_size),
 					color,
-					border_color: 0xeeeeee,
+					border_color: column.props.border_color,
 					border_width: 8.,
 					corner_radius: 2.,
 					borders: [true, true, true, true],
@@ -173,26 +185,30 @@ impl Scene for KeyOverlayScene {
 				});
 
 				// key name
-				drawer.draw_text(&TextBlueprint {
-					text: display_key(column.key),
-					x: key_pos.x - key_size / 2. + 5.,
-					y: key_pos.y + 10.,
-					font: &self.default_font,
-					size: 20.,
-					col: 0xeeeeee,
-					alpha: 1.,
-				});
+				if self.display_keys {
+					drawer.draw_text(&TextBlueprint {
+						text: display_key(column.key),
+						x: key_pos.x - key_size.x / 2. + 5.,
+						y: key_pos.y + 10.,
+						font: &self.default_font,
+						size: 20.,
+						col: 0xeeeeee,
+						alpha: 1.,
+					});
+				}
 
 				// counter
-				drawer.draw_text(&TextBlueprint {
-					text: &format!("{}", column.count),
-					x: key_pos.x - key_size / 2. + 15.,
-					y: key_pos.y - key_size / 2. - 10.,
-					font: &self.default_font,
-					size: 25.,
-					col: 0xeeeeee,
-					alpha: 1.,
-				});
+				if self.display_counters {
+					drawer.draw_text(&TextBlueprint {
+						text: &format!("{}", column.count),
+						x: key_pos.x - key_size.x / 2. + 15.,
+						y: key_pos.y - key_size.y / 2. - 10.,
+						font: &self.default_font,
+						size: 25.,
+						col: 0xeeeeee,
+						alpha: 1.,
+					});
+				}
 
 				// history rectangles
 				let mut opt_prev_time: Option<SystemTime> = column.pressed.then_some(self.now);
@@ -215,10 +231,10 @@ impl Scene for KeyOverlayScene {
 								rect: Rect {
 									x: center_pos.x,
 									y,
-									w: key_size,
+									w: key_size.x,
 									h,
 								},
-								color: 0x63ffec,
+								color: column.props.color,
 								border_color: 0x000000,
 								border_width: 0.,
 								corner_radius: 0.,
@@ -237,21 +253,30 @@ impl Scene for KeyOverlayScene {
 	}
 }
 
+const CONFIG_PATH: &str = "cowonfig.toml";
+
 fn main() -> Result<(), Box<dyn Error>> {
-	let cowonfig = fs::read_to_string("cowonfig.toml")?;
-	let config: Config = toml::from_str(&cowonfig)?;
+	let config = match fs::read_to_string(CONFIG_PATH) {
+		Ok(c) => toml::from_str(&c)?,
+		Err(e) if e.kind() == io::ErrorKind::NotFound => {
+			let config = default_config();
+			fs::write(CONFIG_PATH, toml::to_string(&config)?)?;
+			config
+		}
+		Err(e) => return Err(e.into()),
+	};
 
 	let mut keys = HashSet::new();
 	let mut key_columns = Vec::new();
-	for column in &config.columns {
+	for column in config.columns.iter().cloned() {
 		let key: OwoKey = column.key.parse()?;
 		keys.insert(key.0);
-		key_columns.push(KeyColumn::new(key.0));
+		key_columns.push(KeyColumn::new(key.0, column));
 	}
 
 	let (keyboard_tx, keyboard_rx) = mpsc::channel::<KeyEvent>();
 
-	let mut scene = KeyOverlayScene::new(keyboard_rx, config.speed as f32, key_columns);
+	let mut scene = KeyOverlayScene::new(keyboard_rx, &config, key_columns);
 
 	thread::Builder::new()
 		.name("Global Keyboard Listener".to_string())
