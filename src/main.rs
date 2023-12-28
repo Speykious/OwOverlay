@@ -187,15 +187,21 @@ impl Scene for KeyOverlayScene {
 						Some(prev_time) => {
 							let time_secs = self.time_to_secs(time);
 							let prev_time_secs = self.time_to_secs(prev_time);
-							let h = (time_secs - prev_time_secs) * self.speed;
+							let h = ((time_secs - prev_time_secs) * self.speed).min(viewport.y);
 							let y = (prev_time_secs - self.time_to_secs(self.now)) * self.speed;
+							let y = y + center_pos.y;
+
+							// stop drawing rectangles once off-screen
+							if y <= 0. {
+								break;
+							}
 
 							// dbg!(y);
 
 							drawer.draw_rect(&RectBlueprint {
 								rect: Rect {
 									x: center_pos.x,
-									y: y + center_pos.y,
+									y,
 									w: key_size,
 									h,
 								},
