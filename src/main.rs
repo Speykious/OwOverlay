@@ -6,6 +6,8 @@ use std::sync::mpsc;
 use std::time::SystemTime;
 use std::{fs, io, thread};
 
+use app::OwOverlayApp;
+use app_frame::AppFrame;
 use clap::Parser;
 use config::{default_config, ColumnProps, Config};
 use draw::{center_from, rect, Anchor};
@@ -14,14 +16,14 @@ use key::{display_key, OwoKey};
 use loki_draw::drawer::{Drawer, RectBlueprint, TextBlueprint};
 use loki_draw::font::Font;
 use loki_draw::rect::Rect;
+use winit::dpi::PhysicalSize;
+use winit::window::WindowBuilder;
 
-use crate::window::spawn_window;
-
+mod app;
+mod app_frame;
 mod config;
 mod draw;
 mod key;
-mod opengl;
-mod window;
 
 const ROBOTO_FONT: &[u8] = include_bytes!("../assets/Roboto-Regular.ttf");
 
@@ -300,7 +302,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	let (keyboard_tx, keyboard_rx) = mpsc::channel::<KeyEvent>();
 
-	let mut scene = KeyOverlayScene::new(keyboard_rx, &config, key_columns);
+	let scene = KeyOverlayScene::new(keyboard_rx, &config, key_columns);
 
 	thread::Builder::new()
 		.name("Global Keyboard Listener".to_string())
@@ -332,7 +334,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 			}
 		})?;
 
-	spawn_window(&mut scene)?;
+	let (width, height) = (800, 500);
 
-	Ok(())
+	let app_frame = AppFrame::init(
+		WindowBuilder::new()
+			.with_transparent(true)
+			.with_resizable(true)
+			.with_inner_size(PhysicalSize::new(width, height)),
+	)?;
+
+	app_frame.run(OwOverlayApp::new(width, height, scene))
 }
