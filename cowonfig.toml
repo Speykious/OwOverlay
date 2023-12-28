@@ -1,4 +1,5 @@
 speed = 727
+transparent_window = false
 display_keys = false
 display_counters = false
 

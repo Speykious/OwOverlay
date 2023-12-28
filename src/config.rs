@@ -7,6 +7,9 @@ pub struct Config {
 	pub speed: u32,
 
 	#[serde(default = "default::yes")]
+	pub transparent_window: bool,
+
+	#[serde(default = "default::yes")]
 	pub display_keys: bool,
 	#[serde(default = "default::yes")]
 	pub display_counters: bool,
@@ -24,6 +27,7 @@ pub struct Config {
 pub fn default_config() -> Config {
 	Config {
 		speed: 300,
+		transparent_window: default::yes(),
 		display_keys: default::yes(),
 		display_counters: default::yes(),
 		key_spacing: default::config::key_spacing(),

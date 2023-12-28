@@ -338,7 +338,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	let app_frame = AppFrame::init(
 		WindowBuilder::new()
-			.with_transparent(true)
+			.with_transparent(config.transparent_window)
 			.with_resizable(true)
 			.with_inner_size(PhysicalSize::new(width, height)),
 	)?;
