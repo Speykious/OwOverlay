@@ -2,18 +2,22 @@ use core::fmt;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::sync::mpsc;
-use std::thread;
 use std::time::SystemTime;
+use std::{fs, thread};
 
+use config::Config;
 use draw::{center_from, square, Anchor};
 use glam::{vec2, Vec2};
+use key::{display_key, OwoKey};
 use loki_draw::drawer::{Drawer, RectBlueprint, TextBlueprint};
 use loki_draw::font::Font;
 use loki_draw::rect::Rect;
 
 use crate::window::spawn_window;
 
+mod config;
 mod draw;
+mod key;
 mod opengl;
 mod window;
 
@@ -81,9 +85,20 @@ struct KeyOverlayScene {
 }
 
 impl KeyOverlayScene {
-	fn new(keyboard_rx: mpsc::Receiver<KeyEvent>, keys: impl IntoIterator<Item = rdev::Key>) -> Self {
-		let keys = keys.into_iter().collect::<Vec<_>>();
-		let columns = keys.iter().map(|&key| (key, KeyColumn::new(key))).collect();
+	fn new(
+		keyboard_rx: mpsc::Receiver<KeyEvent>,
+		speed: f32,
+		key_columns: impl IntoIterator<Item = KeyColumn>,
+	) -> Self {
+		let mut keys = Vec::new();
+
+		let columns = key_columns
+			.into_iter()
+			.map(|kc| {
+				keys.push(kc.key);
+				(kc.key, kc)
+			})
+			.collect();
 
 		Self {
 			keys,
@@ -91,7 +106,7 @@ impl KeyOverlayScene {
 			default_font: Font::from_data(ROBOTO_FONT),
 			keyboard_rx,
 			now: SystemTime::now(),
-			speed: 227.,
+			speed,
 		}
 	}
 
@@ -159,7 +174,7 @@ impl Scene for KeyOverlayScene {
 
 				// key name
 				drawer.draw_text(&TextBlueprint {
-					text: &format!("{:?}", column.key),
+					text: display_key(column.key),
 					x: key_pos.x - key_size / 2. + 5.,
 					y: key_pos.y + 10.,
 					font: &self.default_font,
@@ -196,8 +211,6 @@ impl Scene for KeyOverlayScene {
 								break;
 							}
 
-							// dbg!(y);
-
 							drawer.draw_rect(&RectBlueprint {
 								rect: Rect {
 									x: center_pos.x,
@@ -225,18 +238,20 @@ impl Scene for KeyOverlayScene {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+	let cowonfig = fs::read_to_string("cowonfig.toml")?;
+	let config: Config = toml::from_str(&cowonfig)?;
+
+	let mut keys = HashSet::new();
+	let mut key_columns = Vec::new();
+	for column in &config.columns {
+		let key: OwoKey = column.key.parse()?;
+		keys.insert(key.0);
+		key_columns.push(KeyColumn::new(key.0));
+	}
+
 	let (keyboard_tx, keyboard_rx) = mpsc::channel::<KeyEvent>();
 
-	let keys = [
-		rdev::Key::KeyQ,
-		rdev::Key::KeyW,
-		rdev::Key::LeftBracket,
-		rdev::Key::RightBracket,
-	];
-
-	let mut scene = KeyOverlayScene::new(keyboard_rx, keys);
-
-	let keys = keys.into_iter().collect::<HashSet<_>>();
+	let mut scene = KeyOverlayScene::new(keyboard_rx, config.speed as f32, key_columns);
 
 	thread::Builder::new()
 		.name("Global Keyboard Listener".to_string())

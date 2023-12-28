@@ -1,0 +1,13 @@
+speed = 727
+
+[[columns]]
+key = "KeyQ"
+
+[[columns]]
+key = "KeyW"
+
+[[columns]]
+key = "LeftBracket"
+
+[[columns]]
+key = "RightBracket"
