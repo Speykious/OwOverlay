@@ -159,7 +159,6 @@ impl Scene for KeyOverlayScene {
 			let spacing = self.key_spacing;
 			let bottom_y = viewport.y - 30.;
 			let n_columns = self.columns.len() as f32;
-			let even_columns = self.columns.len() % 2 == 0;
 
 			for (i, key) in self.keys.iter().enumerate() {
 				let column = self.columns.get(key).unwrap();
@@ -169,7 +168,7 @@ impl Scene for KeyOverlayScene {
 					false => 0x111111,
 				};
 
-				let i = if even_columns { i as f32 + 0.5 } else { i as f32 };
+				let i = i as f32 + 0.5;
 				let x_offset = (i - n_columns / 2.) * (key_size.x + spacing / 2.);
 				let key_pos = vec2(viewport.x / 2. + x_offset, bottom_y);
 
