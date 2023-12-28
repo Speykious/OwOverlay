@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.4.11", features = ["derive"] }
+dirs = "5.0.1"
 gl = "0.14.0"
 glam = "0.25.0"
 glutin = "0.31.2"

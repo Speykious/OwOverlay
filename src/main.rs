@@ -1,10 +1,12 @@
 use core::fmt;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::SystemTime;
 use std::{fs, io, thread};
 
+use clap::Parser;
 use config::{default_config, ColumnProps, Config};
 use draw::{center_from, rect, Anchor};
 use glam::{vec2, Vec2};
@@ -253,14 +255,30 @@ impl Scene for KeyOverlayScene {
 	}
 }
 
-const CONFIG_PATH: &str = "cowonfig.toml";
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+#[command(propagate_version = true)]
+struct Cli {
+	#[arg(short, long, help = "Path to the config")]
+	config: Option<PathBuf>,
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
-	let config = match fs::read_to_string(CONFIG_PATH) {
+	let Cli { config } = Cli::parse();
+
+	let config_dir = dirs::config_dir()
+		.expect("You don't have a config directory???")
+		.join("OwOverlay");
+
+	fs::create_dir_all(&config_dir)?;
+
+	let config_path = config.unwrap_or_else(|| config_dir.join("cowonfig.toml"));
+
+	let config = match fs::read_to_string(&config_path) {
 		Ok(c) => toml::from_str(&c)?,
 		Err(e) if e.kind() == io::ErrorKind::NotFound => {
 			let config = default_config();
-			fs::write(CONFIG_PATH, toml::to_string(&config)?)?;
+			fs::write(&config_path, toml::to_string(&config)?)?;
 			config
 		}
 		Err(e) => return Err(e.into()),
