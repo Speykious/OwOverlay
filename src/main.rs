@@ -9,7 +9,7 @@ use std::{fs, io, thread};
 use app::OwOverlayApp;
 use app_frame::AppFrame;
 use clap::Parser;
-use config::{default_config, ColumnProps, Config};
+use config::{ColumnProps, Config};
 use draw::{center_from, rect, Anchor};
 use glam::{vec2, Vec2};
 use key::{display_key, OwoKey};
@@ -285,7 +285,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 	let config = match fs::read_to_string(&config_path) {
 		Ok(c) => toml::from_str(&c)?,
 		Err(e) if e.kind() == io::ErrorKind::NotFound => {
-			let config = default_config();
+			let config = Config::default();
 			fs::write(&config_path, toml::to_string(&config)?)?;
 			config
 		}
@@ -334,12 +334,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 			}
 		})?;
 
-	let (width, height) = (config.window_width, config.window_height);
+	let (width, height) = (config.window.width, config.window.height);
 
 	let app_frame = AppFrame::init(
 		WindowBuilder::new()
-			.with_transparent(config.transparent_window)
-			.with_resizable(true)
+			.with_transparent(config.window.transparent)
+			.with_resizable(config.window.resizable)
 			.with_inner_size(PhysicalSize::new(width, height)),
 	)?;
 

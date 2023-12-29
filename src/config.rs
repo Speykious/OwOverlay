@@ -3,16 +3,34 @@ use serde::{Deserialize, Serialize};
 use crate::key::serialize_key;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindowProps {
+	#[serde(default = "default::yes")]
+	pub transparent: bool,
+	#[serde(default = "default::yes")]
+	pub resizable: bool,
+	#[serde(default = "default::config::window::width")]
+	pub width: u32,
+	#[serde(default = "default::config::window::height")]
+	pub height: u32,
+}
+
+impl Default for WindowProps {
+	fn default() -> Self {
+		Self {
+			transparent: default::yes(),
+			resizable: default::yes(),
+			width: default::config::window::width(),
+			height: default::config::window::height(),
+		}
+	}
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
 	pub speed: u32,
 
-	#[serde(default = "default::yes")]
-	pub transparent_window: bool,
-
-	#[serde(default = "default::config::window_width")]
-	pub window_width: u32,
-	#[serde(default = "default::config::window_height")]
-	pub window_height: u32,
+	#[serde(default)]
+	pub window: WindowProps,
 
 	#[serde(default = "default::yes")]
 	pub display_keys: bool,
@@ -29,23 +47,23 @@ pub struct Config {
 	pub columns: Vec<ColumnProps>,
 }
 
-pub fn default_config() -> Config {
-	Config {
-		speed: 300,
-		transparent_window: default::yes(),
-		window_width: default::config::window_width(),
-		window_height: default::config::window_height(),
-		display_keys: default::yes(),
-		display_counters: default::yes(),
-		key_spacing: default::config::key_spacing(),
-		default_key_width: default::config::default_key_width(),
-		key_height: default::config::key_height(),
-		columns: vec![
-			ColumnProps::new(rdev::Key::KeyD),
-			ColumnProps::new(rdev::Key::KeyF),
-			ColumnProps::new(rdev::Key::KeyJ),
-			ColumnProps::new(rdev::Key::KeyK),
-		],
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			speed: 300,
+			window: WindowProps::default(),
+			display_keys: default::yes(),
+			display_counters: default::yes(),
+			key_spacing: default::config::key_spacing(),
+			default_key_width: default::config::default_key_width(),
+			key_height: default::config::key_height(),
+			columns: vec![
+				ColumnProps::new(rdev::Key::KeyD),
+				ColumnProps::new(rdev::Key::KeyF),
+				ColumnProps::new(rdev::Key::KeyJ),
+				ColumnProps::new(rdev::Key::KeyK),
+			],
+		}
 	}
 }
 
@@ -83,12 +101,14 @@ mod default {
 	}
 
 	pub mod config {
-		pub fn window_width() -> u32 {
-			500
-		}
+		pub mod window {
+			pub fn width() -> u32 {
+				420
+			}
 
-		pub fn window_height() -> u32 {
-			800
+			pub fn height() -> u32 {
+				690
+			}
 		}
 
 		pub fn key_spacing() -> u32 {

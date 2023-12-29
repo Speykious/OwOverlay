@@ -1,8 +1,10 @@
 speed = 727
 
-transparent_window = false
-window_width = 420
-window_height = 690
+[window]
+transparent = false
+resizable = false
+width = 420
+height = 690
 
 display_keys = false
 display_counters = false
