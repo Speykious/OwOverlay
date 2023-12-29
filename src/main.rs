@@ -334,7 +334,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 			}
 		})?;
 
-	let (width, height) = (800, 500);
+	let (width, height) = (config.window_width, config.window_height);
 
 	let app_frame = AppFrame::init(
 		WindowBuilder::new()

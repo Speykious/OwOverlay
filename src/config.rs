@@ -9,6 +9,11 @@ pub struct Config {
 	#[serde(default = "default::yes")]
 	pub transparent_window: bool,
 
+	#[serde(default = "default::config::window_width")]
+	pub window_width: u32,
+	#[serde(default = "default::config::window_height")]
+	pub window_height: u32,
+
 	#[serde(default = "default::yes")]
 	pub display_keys: bool,
 	#[serde(default = "default::yes")]
@@ -28,6 +33,8 @@ pub fn default_config() -> Config {
 	Config {
 		speed: 300,
 		transparent_window: default::yes(),
+		window_width: default::config::window_width(),
+		window_height: default::config::window_height(),
 		display_keys: default::yes(),
 		display_counters: default::yes(),
 		key_spacing: default::config::key_spacing(),
@@ -76,6 +83,14 @@ mod default {
 	}
 
 	pub mod config {
+		pub fn window_width() -> u32 {
+			500
+		}
+
+		pub fn window_height() -> u32 {
+			800
+		}
+
 		pub fn key_spacing() -> u32 {
 			10
 		}
