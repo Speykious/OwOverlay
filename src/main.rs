@@ -242,7 +242,7 @@ impl Scene for KeyOverlayScene {
 								border_width: 0.,
 								corner_radius: 0.,
 								borders: [false, false, false, false],
-								alpha: 0.5,
+								alpha: column.props.alpha,
 							});
 
 							opt_prev_time = None;
