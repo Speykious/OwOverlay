@@ -112,13 +112,19 @@ impl AppFrame {
 			Some(unsafe {
 				gl_display
 					.create_context(&gl_config, &context_attributes)
-					.unwrap_or_else(|_| {
+					.unwrap_or_else(|e1| {
 						gl_display
 							.create_context(&gl_config, &fallback_context_attributes)
-							.unwrap_or_else(|_| {
+							.unwrap_or_else(|e2| {
 								gl_display
 									.create_context(&gl_config, &legacy_context_attributes)
-									.expect("failed to create context")
+									.unwrap_or_else(|e3| {
+										eprintln!("\x1b[31m\x1b[1mERROR:\x1b[0m failed to create any context");
+										eprintln!("  - Default:  {e1}");
+										eprintln!("  - Fallback: {e2}");
+										eprintln!("  - Legacy:   {e3}");
+										std::process::exit(1)
+									})
 							})
 					})
 			})
