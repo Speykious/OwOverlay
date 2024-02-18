@@ -99,13 +99,13 @@ impl AppFrame {
 
 			// Since glutin by default tries to create OpenGL core context, which may not be
 			// present we should try gles.
-			let fallback_context_attributes = ContextAttributesBuilder::new()
+			let fallback_gles = ContextAttributesBuilder::new()
 				.with_context_api(ContextApi::Gles(None))
 				.build(raw_window_handle);
 
 			// There are also some old devices that support neither modern OpenGL nor GLES.
 			// To support these we can try and create a 2.1 context.
-			let legacy_context_attributes = ContextAttributesBuilder::new()
+			let fallback_legacy = ContextAttributesBuilder::new()
 				.with_context_api(ContextApi::OpenGl(Some(Version::new(2, 1))))
 				.build(raw_window_handle);
 
@@ -114,15 +114,15 @@ impl AppFrame {
 					.create_context(&gl_config, &context_attributes)
 					.unwrap_or_else(|e1| {
 						gl_display
-							.create_context(&gl_config, &fallback_context_attributes)
+							.create_context(&gl_config, &fallback_gles)
 							.unwrap_or_else(|e2| {
 								gl_display
-									.create_context(&gl_config, &legacy_context_attributes)
+									.create_context(&gl_config, &fallback_legacy)
 									.unwrap_or_else(|e3| {
 										eprintln!("\x1b[31m\x1b[1mERROR:\x1b[0m failed to create any context");
-										eprintln!("  - Default:  {e1}");
-										eprintln!("  - Fallback: {e2}");
-										eprintln!("  - Legacy:   {e3}");
+										eprintln!("  - Default:         {e1}");
+										eprintln!("  - Fallback GLES:   {e2}");
+										eprintln!("  - Fallback Legacy: {e3}");
 										std::process::exit(1)
 									})
 							})
