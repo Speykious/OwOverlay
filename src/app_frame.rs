@@ -36,23 +36,21 @@ pub struct AppFrame {
 impl AppFrame {
 	pub fn init(window_builder: WindowBuilder) -> Result<Self, Box<dyn Error>> {
 		let event_loop = EventLoop::new()?;
-		let mut template = ConfigTemplateBuilder::new();
 
-		// The template will match only the configurations supporting rendering
-		// to windows.
-		//
-		// XXX We force transparency only on macOS, given that EGL on X11 doesn't
-		// have it, but we still want to show window. The macOS situation is like
-		// that, because we can query only one config at a time on it, but all
-		// normal platforms will return multiple configs, so we can find the config
-		// with transparency ourselves inside the `reduce`.
-		if window_builder.transparent() {
-			template = template
+		// The template will match only the configurations supporting rendering to windows.
+		let template = if window_builder.transparent() {
+			// We force transparency only on macOS, given that EGL on X11 doesn't
+			// have it, but we still want to show window. The macOS situation is like
+			// that, because we can query only one config at a time on it, but all
+			// normal platforms will return multiple configs, so we can find the config
+			// with transparency ourselves inside the `reduce`.
+
+			ConfigTemplateBuilder::new()
 				.with_alpha_size(8)
-				.with_transparency(cfg!(all(macos_platform, not(wasm_platform))));
+				.with_transparency(cfg!(target_os = "macos"))
 		} else {
-			template = template.with_transparency(false);
-		}
+			ConfigTemplateBuilder::new().with_transparency(false)
+		};
 
 		// Only Windows requires the window to be present before creating the display.
 		// Other platforms don't really need one.
@@ -61,15 +59,14 @@ impl AppFrame {
 		// this condition and always pass the window builder.
 
 		let maydow_builder = {
-			let wgl_backend = cfg!(all(windows, not(wasm_platform)));
+			let wgl_backend = cfg!(target_os = "windows");
 			wgl_backend.then_some(window_builder.clone())
 		};
 
 		let display_builder = DisplayBuilder::new().with_window_builder(maydow_builder);
 
 		let (window, gl_config) = display_builder.build(&event_loop, template, |configs| {
-			// Find the config with the maximum number of samples, so our triangle will
-			// be smooth.
+			// Find the config with the maximum number of samples and that supports transparency
 			configs
 				.reduce(|accum, config| {
 					let config_transparent = config.supports_transparency().unwrap_or(false);
