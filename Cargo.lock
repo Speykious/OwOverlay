@@ -813,7 +813,7 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 [[package]]
 name = "loki-draw"
 version = "0.1.0"
-source = "git+https://github.com/loki-chat/loki-draw?rev=5523902#552390203444722354d096739e39d5d8d9e6bdae"
+source = "git+https://github.com/loki-chat/loki-draw?rev=bdb0404#bdb040407290bbd686bb70fc11115e5aee70b9e5"
 dependencies = [
  "gl",
  "glam",

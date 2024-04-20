@@ -18,4 +18,4 @@ winit = { version = "0.29.7", features = ["rwh_05"] }
 
 [dependencies.loki-draw]
 git = "https://github.com/loki-chat/loki-draw"
-rev = "5523902"
+rev = "bdb0404"

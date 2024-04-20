@@ -189,28 +189,37 @@ impl Scene for KeyOverlayScene {
 
 				// key name
 				if self.display_keys {
-					drawer.draw_text(&TextBlueprint {
+					let mut text = TextBlueprint {
 						text: display_key(column.key),
-						x: key_pos.x - key_size.x / 2. + 5.,
-						y: key_pos.y + 10.,
+						x: key_pos.x,
+						y: key_pos.y + 5.,
 						font: &self.default_font,
 						size: 20.,
 						col: 0xeeeeee,
 						alpha: 1.,
-					});
+					};
+
+					text.x = key_pos.x - text.text_width() / 2.;
+
+					drawer.draw_text(&text);
 				}
 
 				// counter
 				if self.display_counters {
-					drawer.draw_text(&TextBlueprint {
+					let mut text = TextBlueprint {
 						text: &format!("{}", column.count),
-						x: key_pos.x - key_size.x / 2. + 15.,
-						y: key_pos.y - key_size.y / 2. - 10.,
+						x: key_pos.x,
+						y: key_pos.y,
 						font: &self.default_font,
 						size: 25.,
 						col: 0xeeeeee,
 						alpha: 1.,
-					});
+					};
+
+					text.x = key_pos.x - text.text_width() / 2.;
+					text.y = key_pos.y - key_size.y / 2. - text.text_height() / 2.;
+
+					drawer.draw_text(&text);
 				}
 
 				// history rectangles
