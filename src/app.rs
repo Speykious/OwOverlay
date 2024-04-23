@@ -1,9 +1,8 @@
 use glam::{vec2, Vec2};
 use loki_draw::drawer::Drawer;
 use loki_draw::OpenglDrawer;
-use winit::event::{ElementState, KeyEvent, WindowEvent};
+use winit::event::WindowEvent;
 use winit::event_loop::EventLoopWindowTarget;
-use winit::keyboard::{KeyCode, PhysicalKey};
 
 use crate::app_frame::App;
 use crate::Scene;
@@ -46,18 +45,8 @@ impl<S: Scene> App for OwOverlayApp<S> {
 	}
 
 	fn handle_window_event(&self, event: WindowEvent, elwt: &EventLoopWindowTarget<()>) {
-		match event {
-			WindowEvent::CloseRequested => elwt.exit(),
-			WindowEvent::KeyboardInput {
-				event:
-					KeyEvent {
-						physical_key: PhysicalKey::Code(KeyCode::Escape),
-						state: ElementState::Pressed,
-						..
-					},
-				..
-			} => elwt.exit(),
-			_ => (),
+		if event == WindowEvent::CloseRequested {
+			elwt.exit();
 		}
 	}
 }
