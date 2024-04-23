@@ -25,6 +25,13 @@ impl Default for WindowProps {
 	}
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BoxPlacement {
+	Inside,
+	Outside,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
 	pub speed: u32,
@@ -34,8 +41,13 @@ pub struct Config {
 
 	#[serde(default = "default::yes")]
 	pub display_keys: bool,
+	#[serde(default = "default::config::key_placement")]
+	pub key_placement: BoxPlacement,
+
 	#[serde(default = "default::yes")]
 	pub display_counters: bool,
+	#[serde(default = "default::config::counter_placement")]
+	pub counter_placement: BoxPlacement,
 
 	#[serde(default = "default::config::key_spacing")]
 	pub key_spacing: u32,
@@ -53,7 +65,9 @@ impl Default for Config {
 			speed: 300,
 			window: WindowProps::default(),
 			display_keys: default::yes(),
+			key_placement: default::config::key_placement(),
 			display_counters: default::yes(),
+			counter_placement: default::config::counter_placement(),
 			key_spacing: default::config::key_spacing(),
 			default_key_width: default::config::default_key_width(),
 			key_height: default::config::key_height(),
@@ -101,6 +115,8 @@ mod default {
 	}
 
 	pub mod config {
+		use crate::config::BoxPlacement;
+
 		pub mod window {
 			pub fn width() -> u32 {
 				420
@@ -109,6 +125,14 @@ mod default {
 			pub fn height() -> u32 {
 				690
 			}
+		}
+
+		pub fn key_placement() -> BoxPlacement {
+			BoxPlacement::Inside
+		}
+
+		pub fn counter_placement() -> BoxPlacement {
+			BoxPlacement::Outside
 		}
 
 		pub fn key_spacing() -> u32 {

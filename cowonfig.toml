@@ -1,13 +1,15 @@
 speed = 727
 
+display_keys = true
+key_placement = "inside"
+display_counters = true
+counter_placement = "outside"
+
 [window]
-transparent = false
+transparent = true
 resizable = false
 width = 420
 height = 690
-
-display_keys = false
-display_counters = false
 
 [[columns]]
 key = "KeyQ"

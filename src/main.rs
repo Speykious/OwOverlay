@@ -9,7 +9,7 @@ use std::{fs, io, thread};
 use app::OwOverlayApp;
 use app_frame::AppFrame;
 use clap::Parser;
-use config::{ColumnProps, Config};
+use config::{BoxPlacement, ColumnProps, Config};
 use draw::{center_from, rect, Anchor};
 use glam::{vec2, Vec2};
 use key::{display_key, OwoKey};
@@ -90,7 +90,9 @@ struct KeyOverlayScene {
 
 	speed: f32,
 	display_keys: bool,
+	key_placement: BoxPlacement,
 	display_counters: bool,
+	counter_placement: BoxPlacement,
 	key_spacing: f32,
 	default_key_width: f32,
 	key_height: f32,
@@ -121,7 +123,9 @@ impl KeyOverlayScene {
 
 			speed: config.speed as f32,
 			display_keys: config.display_keys,
+			key_placement: config.key_placement,
 			display_counters: config.display_counters,
+			counter_placement: config.counter_placement,
 			key_spacing: config.key_spacing as f32,
 			default_key_width: config.default_key_width as f32,
 			key_height: config.key_height as f32,
@@ -175,38 +179,37 @@ impl Scene for KeyOverlayScene {
 				let key_pos = vec2(viewport.x / 2. + x_offset, bottom_y);
 
 				let center_pos = center_from(key_pos, key_size, Anchor::BC);
+				const KEY_BORDER_WIDTH: f32 = 8.;
 
 				// key rectangle
 				drawer.draw_rect(&RectBlueprint {
 					rect: rect(center_pos, key_size),
 					color,
 					border_color: column.props.border_color,
-					border_width: 8.,
+					border_width: KEY_BORDER_WIDTH,
 					corner_radius: 2.,
 					borders: [true, true, true, true],
 					alpha: 1.,
 				});
 
-				// key name
-				if self.display_keys {
-					let mut text = TextBlueprint {
+				// key and counter texts
+				{
+					const BIG_FONT_SIZE: f32 = 25.;
+					const SMOL_FONT_SIZE: f32 = 20.;
+					const BOTTOM_KEY_TEXT_GAP: f32 = 5.;
+					const CENTER_TEXT_GAP: f32 = 2.;
+
+					let mut key_text = TextBlueprint {
 						text: display_key(column.key),
 						x: key_pos.x,
-						y: key_pos.y + 5.,
+						y: key_pos.y,
 						font: &self.default_font,
 						size: 20.,
 						col: 0xeeeeee,
 						alpha: 1.,
 					};
 
-					text.x = key_pos.x - text.text_width() / 2.;
-
-					drawer.draw_text(&text);
-				}
-
-				// counter
-				if self.display_counters {
-					let mut text = TextBlueprint {
+					let mut counter_text = TextBlueprint {
 						text: &format!("{}", column.count),
 						x: key_pos.x,
 						y: key_pos.y,
@@ -216,10 +219,72 @@ impl Scene for KeyOverlayScene {
 						alpha: 1.,
 					};
 
-					text.x = key_pos.x - text.text_width() / 2.;
-					text.y = key_pos.y - key_size.y / 2. - text.text_height() / 2.;
+					match (self.key_placement, self.counter_placement) {
+						(BoxPlacement::Inside, BoxPlacement::Inside) => {
+							// key and counter inside
+							// have key above and counter below with a gap
 
-					drawer.draw_text(&text);
+							key_text.size = BIG_FONT_SIZE;
+							counter_text.size = SMOL_FONT_SIZE;
+
+							let k_height = key_text.text_height();
+							let c_height = counter_text.text_height();
+							let t_height = k_height + c_height + CENTER_TEXT_GAP;
+
+							key_text.x = key_pos.x - key_text.text_width() / 2.;
+							key_text.y = key_pos.y - key_size.y / 2. - t_height / 2.;
+
+							counter_text.x = key_pos.x - counter_text.text_width() / 2.;
+							counter_text.y = key_pos.y - key_size.y / 2. - t_height / 2. + k_height + CENTER_TEXT_GAP;
+						}
+						(BoxPlacement::Inside, BoxPlacement::Outside) => {
+							// key inside, counter outside
+
+							key_text.size = BIG_FONT_SIZE;
+							counter_text.size = SMOL_FONT_SIZE;
+
+							key_text.x = key_pos.x - key_text.text_width() / 2.;
+							key_text.y = key_pos.y - key_size.y / 2. - key_text.text_height() / 2.;
+
+							counter_text.x = key_pos.x - counter_text.text_width() / 2.;
+							counter_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+						}
+						(BoxPlacement::Outside, BoxPlacement::Inside) => {
+							// key outside, counter inside
+
+							key_text.size = SMOL_FONT_SIZE;
+							counter_text.size = BIG_FONT_SIZE;
+
+							key_text.x = key_pos.x - key_text.text_width() / 2.;
+							key_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+
+							counter_text.x = key_pos.x - counter_text.text_width() / 2.;
+							counter_text.y = key_pos.y - key_size.y / 2. - counter_text.text_height() / 2.;
+						}
+						(BoxPlacement::Outside, BoxPlacement::Outside) => {
+							// key and counter outside
+							// have key on the left and counter on the right
+
+							key_text.size = SMOL_FONT_SIZE;
+							counter_text.size = SMOL_FONT_SIZE;
+
+							let dist = key_size.x / 2. - KEY_BORDER_WIDTH;
+
+							key_text.x = key_pos.x - dist;
+							key_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+
+							counter_text.x = key_pos.x + dist - counter_text.text_width();
+							counter_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+						}
+					}
+
+					if self.display_keys {
+						drawer.draw_text(&key_text);
+					}
+
+					if self.display_counters {
+						drawer.draw_text(&counter_text);
+					}
 				}
 
 				// history rectangles
