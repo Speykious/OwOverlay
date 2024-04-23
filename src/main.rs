@@ -12,7 +12,7 @@ use clap::Parser;
 use config::{BoxPlacement, ColumnProps, Config};
 use draw::{center_from, rect, Anchor};
 use glam::{vec2, Vec2};
-use key::{display_key, OwoKey};
+use key::display_key;
 use loki_draw::drawer::{Drawer, RectBlueprint, TextBlueprint};
 use loki_draw::font::Font;
 use loki_draw::rect::Rect;
@@ -34,9 +34,10 @@ pub trait Scene {
 
 #[derive(Clone)]
 struct KeyColumn {
-	pub key: rdev::Key,
+	pub name: String,
 	pub count: u64,
 	pub pressed: bool,
+	pub pressed_keys: HashMap<rdev::Key, bool>,
 	pub props: ColumnProps,
 	pub times: VecDeque<SystemTime>,
 }
@@ -44,33 +45,70 @@ struct KeyColumn {
 impl fmt::Display for KeyColumn {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let x = if self.pressed { "x" } else { " " };
-		write!(f, "({}) [{:?}] {} (#T={})", x, self.key, self.count, self.times.len())
+		write!(f, "({}) [", x)?;
+
+		for key in &self.props.keys {
+			write!(f, "{:?}", key)?;
+		}
+
+		write!(f, "] {} (#T={})", self.count, self.times.len())
 	}
 }
 
 impl KeyColumn {
-	pub fn new(key: rdev::Key, props: ColumnProps) -> Self {
+	pub fn new(props: ColumnProps) -> Self {
+		let name = match &props.name {
+			Some(name) => name.clone(),
+			None => {
+				let mut s = String::new();
+
+				for &key in &props.keys {
+					s += display_key(key);
+				}
+
+				s
+			}
+		};
+
+		let pressed_keys = props.keys.iter().copied().map(|key| (key, false)).collect();
+
 		Self {
-			key,
+			name,
 			count: 0,
 			pressed: false,
+			pressed_keys,
 			props,
 			times: VecDeque::with_capacity(1024),
 		}
 	}
 
-	pub fn toggle_key(&mut self, time: SystemTime) {
-		self.pressed = !self.pressed;
+	pub fn set_key_pressed(&mut self, event: KeyEvent) {
+		let Some(pressed_key) = self.pressed_keys.get_mut(&event.key) else {
+			return;
+		};
 
-		if self.pressed {
+		if *pressed_key == event.pressed {
+			return;
+		}
+
+		*pressed_key = event.pressed;
+
+		if event.pressed {
 			self.count += 1;
+		}
+
+		let prev_pressed = self.pressed;
+		self.pressed = self.pressed_keys.values().any(|&v| v);
+
+		if prev_pressed == self.pressed {
+			return;
 		}
 
 		if self.times.len() >= 1024 {
 			self.times.pop_back();
 		}
 
-		self.times.push_front(time);
+		self.times.push_front(event.time);
 	}
 }
 
@@ -82,8 +120,8 @@ struct KeyEvent {
 }
 
 struct KeyOverlayScene {
-	keys: Vec<rdev::Key>,
-	columns: HashMap<rdev::Key, KeyColumn>,
+	columns: Vec<KeyColumn>,
+	key_column_map: HashMap<rdev::Key, usize>,
 	default_font: Font<'static>,
 	keyboard_rx: mpsc::Receiver<KeyEvent>,
 	now: SystemTime,
@@ -104,19 +142,23 @@ impl KeyOverlayScene {
 		config: &Config,
 		key_columns: impl IntoIterator<Item = KeyColumn>,
 	) -> Self {
-		let mut keys = Vec::new();
+		let mut key_column_map = HashMap::new();
 
 		let columns = key_columns
 			.into_iter()
-			.map(|kc| {
-				keys.push(kc.key);
-				(kc.key, kc)
+			.enumerate()
+			.map(|(i, kc)| {
+				for &key in &kc.props.keys {
+					key_column_map.insert(key, i);
+				}
+
+				kc
 			})
 			.collect();
 
 		Self {
-			keys,
 			columns,
+			key_column_map,
 			default_font: Font::from_data(ROBOTO_FONT),
 			keyboard_rx,
 			now: SystemTime::now(),
@@ -142,16 +184,17 @@ impl KeyOverlayScene {
 			(now - time) as f32 / -1000.
 		}
 	}
+
+	fn column_mut(&mut self, key: rdev::Key) -> Option<&mut KeyColumn> {
+		self.columns.get_mut(*self.key_column_map.get(&key)?)
+	}
 }
 
 impl Scene for KeyOverlayScene {
 	fn update(&mut self) {
 		while let Ok(key_event) = self.keyboard_rx.try_recv() {
-			let column = self.columns.get_mut(&key_event.key).unwrap();
-
-			if column.pressed != key_event.pressed {
-				column.toggle_key(key_event.time);
-			}
+			let column = self.column_mut(key_event.key).unwrap();
+			column.set_key_pressed(key_event);
 		}
 
 		self.now = SystemTime::now();
@@ -166,9 +209,7 @@ impl Scene for KeyOverlayScene {
 			let bottom_y = viewport.y - 30.;
 			let n_columns = self.columns.len() as f32;
 
-			for (i, key) in self.keys.iter().enumerate() {
-				let column = self.columns.get(key).unwrap();
-
+			for (i, column) in self.columns.iter().enumerate() {
 				let color = match column.pressed {
 					true => column.props.hover_color,
 					false => 0x111111,
@@ -200,7 +241,7 @@ impl Scene for KeyOverlayScene {
 					const CENTER_TEXT_GAP: f32 = 2.;
 
 					let mut key_text = TextBlueprint {
-						text: display_key(column.key),
+						text: &column.name,
 						x: key_pos.x,
 						y: key_pos.y,
 						font: &self.default_font,
@@ -367,12 +408,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 	};
 
 	let mut keys = HashSet::new();
-	let mut key_columns = Vec::new();
-	for column in config.columns.iter().cloned() {
-		let key: OwoKey = column.key.parse()?;
-		keys.insert(key.0);
-		key_columns.push(KeyColumn::new(key.0, column));
-	}
+
+	let key_columns = (config.columns.iter().cloned())
+		.inspect(|column| keys.extend(column.keys.iter().copied()))
+		.map(KeyColumn::new)
+		.collect::<Vec<_>>();
 
 	let (keyboard_tx, keyboard_rx) = mpsc::channel::<KeyEvent>();
 

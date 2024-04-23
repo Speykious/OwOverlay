@@ -12,21 +12,21 @@ width = 420
 height = 690
 
 [[columns]]
-key = "KeyQ"
+keys = ["KeyQ", "KeyA"]
 color = 0xff6376
 border_color = 0xff6376
 
 [[columns]]
-key = "KeyW"
+keys = ["KeyW", "KeyS", "KeyX"]
 color = 0x63ffec
 border_color = 0x63ffec
 
 [[columns]]
-key = "LeftBracket"
+keys = ["LeftBracket"]
 color = 0x63ffec
 border_color = 0x63ffec
 
 [[columns]]
-key = "RightBracket"
+keys = ["RightBracket"]
 color = 0xff6376
 border_color = 0xff6376

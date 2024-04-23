@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::key::serialize_key;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowProps {
 	#[serde(default = "default::yes")]
@@ -72,10 +70,10 @@ impl Default for Config {
 			default_key_width: default::config::default_key_width(),
 			key_height: default::config::key_height(),
 			columns: vec![
-				ColumnProps::new(rdev::Key::KeyD),
-				ColumnProps::new(rdev::Key::KeyF),
-				ColumnProps::new(rdev::Key::KeyJ),
-				ColumnProps::new(rdev::Key::KeyK),
+				ColumnProps::new(None, [rdev::Key::KeyD].into()),
+				ColumnProps::new(None, [rdev::Key::KeyF].into()),
+				ColumnProps::new(None, [rdev::Key::KeyJ].into()),
+				ColumnProps::new(None, [rdev::Key::KeyK].into()),
 			],
 		}
 	}
@@ -83,7 +81,8 @@ impl Default for Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColumnProps {
-	pub key: String,
+	pub name: Option<String>,
+	pub keys: Vec<rdev::Key>,
 	#[serde(default = "default::column::width")]
 	pub width: u32,
 	#[serde(default = "default::column::color")]
@@ -97,9 +96,10 @@ pub struct ColumnProps {
 }
 
 impl ColumnProps {
-	fn new(key: rdev::Key) -> ColumnProps {
+	fn new(name: Option<String>, keys: Vec<rdev::Key>) -> ColumnProps {
 		ColumnProps {
-			key: serialize_key(key),
+			name,
+			keys,
 			width: default::column::width(),
 			color: default::column::color(),
 			hover_color: default::column::hover_color(),
