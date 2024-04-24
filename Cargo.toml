@@ -1,7 +1,11 @@
 [package]
 name = "owoverlay"
+description = "A very simple configurable key overlay written in Rust."
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["Speykious <speykious+gh@speykious.dev>"]
+repository = "https://github.com/Speykious/OwOverlay"
 
 [dependencies]
 clap = { version = "4.4.11", features = ["derive"] }
@@ -18,4 +22,5 @@ winit = { version = "0.29.7", features = ["rwh_05"] }
 
 [dependencies.loki-draw]
 git = "https://github.com/loki-chat/loki-draw"
+version = "0.1.0"
 rev = "bdb0404"
