@@ -1,9 +1,17 @@
+# Scroll speed in pixels
 speed = 727
+
+# Scroll direction: "up" or "down"
 direction = "up"
 
+# Whether the key text is displayed
 display_keys = true
+# Where the key text is placed: "inside" or "outside" the key box
 key_placement = "inside"
+
+# Whether the counter text is displayed
 display_counters = true
+# Where the counter text is placed: "inside" or "outside" the key box
 counter_placement = "outside"
 
 [window]
@@ -13,9 +21,22 @@ width = 420
 height = 690
 
 [[columns]]
+# Keys that trigger this column
 keys = ["KeyQ", "KeyA"]
+
+# Color of the rectangles (0xRRGGBB hex code) (defaults to 0x63ffec)
 color = 0xff6376
+
+# Color of the key box when pressed (defaults to 0x555555)
+# hover_color = 0x555555
+
+# Color of the key box border (0xRRGGBB hex code) (defaults to 0xeeeeee)
 border_color = 0xff6376
+
+# Opacity of the rectangles (defaults to 0.5)
+# alpha = 0.5
+
+# Same for other columns below
 
 [[columns]]
 keys = ["KeyW", "KeyS", "KeyX"]
