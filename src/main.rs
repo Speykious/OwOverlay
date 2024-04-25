@@ -376,13 +376,13 @@ impl Scene for KeyOverlayScene {
 #[command(propagate_version = true)]
 struct Cli {
 	#[arg(short, long, help = "Path to the config")]
-	config_path: Option<PathBuf>,
+	config: Option<PathBuf>,
 	#[arg(short, long, help = "Name of a config stored in the config directory")]
 	preset: Option<PathBuf>,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-	let Cli { config_path, preset } = Cli::parse();
+	let Cli { config: config_path, preset } = Cli::parse();
 
 	let config_dir = dirs::config_dir()
 		.expect("You don't have a config directory???")
