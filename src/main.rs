@@ -390,16 +390,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	fs::create_dir_all(&config_dir)?;
 
-	let config_path = match (config_path, preset) {
+	let (config_path, do_default) = match (config_path, preset) {
 		(Some(_), Some(_)) => panic!("Can't specify the config path and a preset at the same time!"),
-		(Some(config_path), None) => config_path,
-		(None, Some(preset)) => config_dir.join(preset).with_extension("toml"),
-		(None, None) => config_dir.join("cowonfig.toml"),
+		(Some(config_path), None) => (config_path, false),
+		(None, Some(preset)) => (config_dir.join(preset).with_extension("toml"), false),
+		(None, None) => (config_dir.join("cowonfig.toml"), true),
 	};
 
 	let config = match fs::read_to_string(&config_path) {
 		Ok(c) => toml::from_str(&c)?,
 		Err(e) if e.kind() == io::ErrorKind::NotFound => {
+			if !do_default {
+				panic!("ERROR: {} doesn't exist :(", config_path.display());
+			}
+
 			let config = Config::default();
 			fs::write(&config_path, toml::to_string(&config)?)?;
 			config
