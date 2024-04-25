@@ -1,4 +1,5 @@
 speed = 727
+direction = "up"
 
 display_keys = true
 key_placement = "inside"

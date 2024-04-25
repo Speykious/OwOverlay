@@ -30,9 +30,20 @@ pub enum BoxPlacement {
 	Outside,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScrollDirection {
+	#[default]
+	Up,
+	Down,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
 	pub speed: u32,
+
+	#[serde(default)]
+	pub direction: ScrollDirection,
 
 	#[serde(default)]
 	pub window: WindowProps,
@@ -61,6 +72,7 @@ impl Default for Config {
 	fn default() -> Self {
 		Config {
 			speed: 300,
+			direction: ScrollDirection::default(),
 			window: WindowProps::default(),
 			display_keys: default::yes(),
 			key_placement: default::config::key_placement(),

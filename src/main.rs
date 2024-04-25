@@ -9,8 +9,8 @@ use std::{fs, io, thread};
 use app::OwOverlayApp;
 use app_frame::AppFrame;
 use clap::Parser;
-use config::{BoxPlacement, ColumnProps, Config};
-use draw::{center_from, rect, Anchor};
+use config::{BoxPlacement, ColumnProps, Config, ScrollDirection};
+use layout::{Anchor, OwoRect};
 use glam::{vec2, Vec2};
 use key::display_key;
 use loki_draw::drawer::{Drawer, RectBlueprint, TextBlueprint};
@@ -22,7 +22,7 @@ use winit::window::WindowBuilder;
 mod app;
 mod app_frame;
 mod config;
-mod draw;
+mod layout;
 mod key;
 
 const ROBOTO_FONT: &[u8] = include_bytes!("../assets/Roboto-Regular.ttf");
@@ -127,6 +127,7 @@ struct KeyOverlayScene {
 	now: SystemTime,
 
 	speed: f32,
+	direction: ScrollDirection,
 	display_keys: bool,
 	key_placement: BoxPlacement,
 	display_counters: bool,
@@ -164,6 +165,7 @@ impl KeyOverlayScene {
 			now: SystemTime::now(),
 
 			speed: config.speed as f32,
+			direction: config.direction,
 			display_keys: config.display_keys,
 			key_placement: config.key_placement,
 			display_counters: config.display_counters,
@@ -206,7 +208,11 @@ impl Scene for KeyOverlayScene {
 		{
 			let key_size = vec2(self.default_key_width, self.key_height);
 			let spacing = self.key_spacing;
-			let bottom_y = viewport.y - 30.;
+			let key_y = match self.direction {
+				ScrollDirection::Up => viewport.y - 30.,
+				ScrollDirection::Down => 30.,
+			};
+
 			let n_columns = self.columns.len() as f32;
 
 			for (i, column) in self.columns.iter().enumerate() {
@@ -217,14 +223,21 @@ impl Scene for KeyOverlayScene {
 
 				let i = i as f32 + 0.5;
 				let x_offset = (i - n_columns / 2.) * (key_size.x + spacing / 2.);
-				let key_pos = vec2(viewport.x / 2. + x_offset, bottom_y);
 
-				let center_pos = center_from(key_pos, key_size, Anchor::BC);
+				let key_rect = OwoRect {
+					pos: vec2(viewport.x / 2. + x_offset, key_y),
+					size: key_size,
+					origin: match self.direction {
+						ScrollDirection::Up => Anchor::BC,
+						ScrollDirection::Down => Anchor::TC,
+					},
+				};
+
 				const KEY_BORDER_WIDTH: f32 = 8.;
 
 				// key rectangle
 				drawer.draw_rect(&RectBlueprint {
-					rect: rect(center_pos, key_size),
+					rect: key_rect.to_rect(),
 					color,
 					border_color: column.props.border_color,
 					border_width: KEY_BORDER_WIDTH,
@@ -242,8 +255,8 @@ impl Scene for KeyOverlayScene {
 
 					let mut key_text = TextBlueprint {
 						text: &column.name,
-						x: key_pos.x,
-						y: key_pos.y,
+						x: key_rect.pos.x,
+						y: key_rect.pos.y,
 						font: &self.default_font,
 						size: 20.,
 						col: 0xeeeeee,
@@ -252,13 +265,16 @@ impl Scene for KeyOverlayScene {
 
 					let mut counter_text = TextBlueprint {
 						text: &format!("{}", column.count),
-						x: key_pos.x,
-						y: key_pos.y,
+						x: key_rect.pos.x,
+						y: key_rect.pos.y,
 						font: &self.default_font,
 						size: 25.,
 						col: 0xeeeeee,
 						alpha: 1.,
 					};
+
+					let kt_rect;
+					let ct_rect;
 
 					match (self.key_placement, self.counter_placement) {
 						(BoxPlacement::Inside, BoxPlacement::Inside) => {
@@ -268,15 +284,17 @@ impl Scene for KeyOverlayScene {
 							key_text.size = BIG_FONT_SIZE;
 							counter_text.size = SMOL_FONT_SIZE;
 
-							let k_height = key_text.text_height();
-							let c_height = counter_text.text_height();
-							let t_height = k_height + c_height + CENTER_TEXT_GAP;
+							kt_rect = OwoRect {
+								pos: key_rect.center() - vec2(0., CENTER_TEXT_GAP),
+								size: vec2(key_text.text_width(), key_text.text_height()),
+								origin: Anchor::BC,
+							};
 
-							key_text.x = key_pos.x - key_text.text_width() / 2.;
-							key_text.y = key_pos.y - key_size.y / 2. - t_height / 2.;
-
-							counter_text.x = key_pos.x - counter_text.text_width() / 2.;
-							counter_text.y = key_pos.y - key_size.y / 2. - t_height / 2. + k_height + CENTER_TEXT_GAP;
+							ct_rect = OwoRect {
+								pos: key_rect.center() + vec2(0., CENTER_TEXT_GAP),
+								size: vec2(counter_text.text_width(), counter_text.text_height()),
+								origin: Anchor::TC,
+							};
 						}
 						(BoxPlacement::Inside, BoxPlacement::Outside) => {
 							// key inside, counter outside
@@ -284,11 +302,24 @@ impl Scene for KeyOverlayScene {
 							key_text.size = BIG_FONT_SIZE;
 							counter_text.size = SMOL_FONT_SIZE;
 
-							key_text.x = key_pos.x - key_text.text_width() / 2.;
-							key_text.y = key_pos.y - key_size.y / 2. - key_text.text_height() / 2.;
+							kt_rect = OwoRect {
+								pos: key_rect.center(),
+								size: vec2(key_text.text_width(), key_text.text_height()),
+								origin: Anchor::CC,
+							};
 
-							counter_text.x = key_pos.x - counter_text.text_width() / 2.;
-							counter_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+							ct_rect = match self.direction {
+								ScrollDirection::Up => OwoRect {
+									pos: key_rect.anchor(Anchor::BC) + vec2(0., BOTTOM_KEY_TEXT_GAP),
+									size: vec2(counter_text.text_width(), counter_text.text_height()),
+									origin: Anchor::TC,
+								},
+								ScrollDirection::Down => OwoRect {
+									pos: key_rect.anchor(Anchor::TC) - vec2(0., BOTTOM_KEY_TEXT_GAP),
+									size: vec2(counter_text.text_width(), counter_text.text_height()),
+									origin: Anchor::BC,
+								},
+							};
 						}
 						(BoxPlacement::Outside, BoxPlacement::Inside) => {
 							// key outside, counter inside
@@ -296,11 +327,24 @@ impl Scene for KeyOverlayScene {
 							key_text.size = SMOL_FONT_SIZE;
 							counter_text.size = BIG_FONT_SIZE;
 
-							key_text.x = key_pos.x - key_text.text_width() / 2.;
-							key_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+							kt_rect = match self.direction {
+								ScrollDirection::Up => OwoRect {
+									pos: key_rect.anchor(Anchor::BC) + vec2(0., BOTTOM_KEY_TEXT_GAP),
+									size: vec2(key_text.text_width(), key_text.text_height()),
+									origin: Anchor::TC,
+								},
+								ScrollDirection::Down => OwoRect {
+									pos: key_rect.anchor(Anchor::TC) - vec2(0., BOTTOM_KEY_TEXT_GAP),
+									size: vec2(key_text.text_width(), key_text.text_height()),
+									origin: Anchor::BC,
+								},
+							};
 
-							counter_text.x = key_pos.x - counter_text.text_width() / 2.;
-							counter_text.y = key_pos.y - key_size.y / 2. - counter_text.text_height() / 2.;
+							ct_rect = OwoRect {
+								pos: key_rect.center(),
+								size: vec2(counter_text.text_width(), counter_text.text_height()),
+								origin: Anchor::CC,
+							};
 						}
 						(BoxPlacement::Outside, BoxPlacement::Outside) => {
 							// key and counter outside
@@ -309,15 +353,64 @@ impl Scene for KeyOverlayScene {
 							key_text.size = SMOL_FONT_SIZE;
 							counter_text.size = SMOL_FONT_SIZE;
 
-							let dist = key_size.x / 2. - KEY_BORDER_WIDTH;
+							kt_rect = match self.direction {
+								ScrollDirection::Up => OwoRect {
+									pos: key_rect.anchor(Anchor::BL) + vec2(KEY_BORDER_WIDTH, BOTTOM_KEY_TEXT_GAP),
+									size: vec2(key_text.text_width(), key_text.text_height()),
+									origin: Anchor::TL,
+								},
+								ScrollDirection::Down => OwoRect {
+									pos: key_rect.anchor(Anchor::TL) + vec2(KEY_BORDER_WIDTH, -BOTTOM_KEY_TEXT_GAP),
+									size: vec2(key_text.text_width(), key_text.text_height()),
+									origin: Anchor::BL,
+								},
+							};
 
-							key_text.x = key_pos.x - dist;
-							key_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
-
-							counter_text.x = key_pos.x + dist - counter_text.text_width();
-							counter_text.y = key_pos.y + BOTTOM_KEY_TEXT_GAP;
+							ct_rect = match self.direction {
+								ScrollDirection::Up => OwoRect {
+									pos: key_rect.anchor(Anchor::BR) + vec2(-KEY_BORDER_WIDTH, BOTTOM_KEY_TEXT_GAP),
+									size: vec2(counter_text.text_width(), counter_text.text_height()),
+									origin: Anchor::TR,
+								},
+								ScrollDirection::Down => OwoRect {
+									pos: key_rect.anchor(Anchor::TR) + vec2(-KEY_BORDER_WIDTH, -BOTTOM_KEY_TEXT_GAP),
+									size: vec2(counter_text.text_width(), counter_text.text_height()),
+									origin: Anchor::BR,
+								},
+							};
 						}
 					}
+
+					let key_text_pos = kt_rect.top_left();
+					key_text.x = key_text_pos.x;
+					key_text.y = key_text_pos.y;
+
+					let counter_text_pos = ct_rect.top_left();
+					counter_text.x = counter_text_pos.x;
+					counter_text.y = counter_text_pos.y;
+
+					// // debug rectangles
+					// {
+					// 	drawer.draw_rect(&RectBlueprint {
+					// 		rect: kt_rect.to_rect(),
+					// 		color,
+					// 		border_color: 0xffff00,
+					// 		border_width: 1.,
+					// 		corner_radius: 0.,
+					// 		borders: [true, true, true, true],
+					// 		alpha: 1.,
+					// 	});
+
+					// 	drawer.draw_rect(&RectBlueprint {
+					// 		rect: ct_rect.to_rect(),
+					// 		color,
+					// 		border_color: 0xff00ff,
+					// 		border_width: 1.,
+					// 		corner_radius: 0.,
+					// 		borders: [true, true, true, true],
+					// 		alpha: 1.,
+					// 	});
+					// }
 
 					if self.display_keys {
 						drawer.draw_text(&key_text);
@@ -334,11 +427,20 @@ impl Scene for KeyOverlayScene {
 				for time in column.times.iter().copied() {
 					match opt_prev_time {
 						Some(prev_time) => {
+							let base_pos = key_rect.anchor(match self.direction {
+								ScrollDirection::Up => Anchor::TL,
+								ScrollDirection::Down => Anchor::BL,
+							});
+
 							let time_secs = self.time_to_secs(time);
 							let prev_time_secs = self.time_to_secs(prev_time);
+
 							let h = ((time_secs - prev_time_secs) * self.speed).min(viewport.y);
 							let y = (prev_time_secs - self.time_to_secs(self.now)) * self.speed;
-							let y = y + center_pos.y;
+							let y = match self.direction {
+									ScrollDirection::Up => base_pos.y + y,
+									ScrollDirection::Down => base_pos.y - y - h,
+								};
 
 							// stop drawing rectangles once off-screen
 							if y <= 0. {
@@ -347,7 +449,7 @@ impl Scene for KeyOverlayScene {
 
 							drawer.draw_rect(&RectBlueprint {
 								rect: Rect {
-									x: center_pos.x,
+									x: base_pos.x,
 									y,
 									w: key_size.x,
 									h,
@@ -382,7 +484,10 @@ struct Cli {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-	let Cli { config: config_path, preset } = Cli::parse();
+	let Cli {
+		config: config_path,
+		preset,
+	} = Cli::parse();
 
 	let config_dir = dirs::config_dir()
 		.expect("You don't have a config directory???")

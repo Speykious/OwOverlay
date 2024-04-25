@@ -33,18 +33,34 @@ impl Anchor {
 	pub const BR: Anchor = Anchor(Vec2::new(1.0, 1.0));
 }
 
-pub fn center_from(pos: Vec2, size: Vec2, anchor: Anchor) -> Vec2 {
-	Vec2 {
-		x: pos.x - size.x * (1. - anchor.x),
-		y: pos.y - size.y * anchor.y,
-	}
+#[derive(Debug, Clone, Default)]
+pub struct OwoRect {
+	pub pos: Vec2,
+	pub size: Vec2,
+	pub origin: Anchor,
 }
 
-pub fn rect(center: Vec2, size: Vec2) -> Rect {
-	Rect {
-		x: center.x,
-		y: center.y,
-		w: size.x,
-		h: size.y,
+impl OwoRect {
+	pub fn top_left(&self) -> Vec2 {
+		self.pos - self.size * Vec2::new(self.origin.x, self.origin.y)
+	}
+
+	pub fn center(&self) -> Vec2 {
+		self.top_left() + self.size / 2.
+	}
+
+	pub fn anchor(&self, anchor: Anchor) -> Vec2 {
+		self.top_left() + self.size * Vec2::new(anchor.x, anchor.y)
+	}
+
+	pub fn to_rect(&self) -> Rect {
+		let tl = self.top_left();
+
+		Rect {
+			x: tl.x,
+			y: tl.y,
+			w: self.size.x,
+			h: self.size.y,
+		}
 	}
 }
