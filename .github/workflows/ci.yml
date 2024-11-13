@@ -1,5 +1,7 @@
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -26,6 +28,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.target }}
+
+      - name: Install X11 on Linux
+        if: matrix.config.os == 'ubuntu-latest'
+        run: sudo apt install libx11-dev
 
       - name: Setup aarch64
         if: matrix.config.target == 'aarch64-unknown-linux-gnu'
