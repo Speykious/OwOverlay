@@ -12,7 +12,7 @@ If you have the Rust toolchain installed, you can use `cargo`:
 cargo install owoverlay
 ```
 
-Eventually, binaries will be released in this repository.
+Otherwise, go to the Releases section.
 
 ## How do I use it?
 
