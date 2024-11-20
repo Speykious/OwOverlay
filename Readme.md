@@ -1,6 +1,6 @@
 # OwOverlay
 
-A very simple configurable key overlay written in Rust.
+A very simple configurable key overlay.
 
 ![Screenshot of OwOverlay](screenshot.png)
 
