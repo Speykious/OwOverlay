@@ -189,14 +189,14 @@ impl KeyOverlayScene {
 		}
 	}
 
-	fn time_to_secs(&self, time: SystemTime) -> f32 {
-		let time = time.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
-		let now = self.now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
+	fn duration_since_now(&self, time: SystemTime) -> Duration {
+		let time = time.duration_since(SystemTime::UNIX_EPOCH).unwrap();
+		let now = self.now.duration_since(SystemTime::UNIX_EPOCH).unwrap();
 
-		if time > now {
-			(time - now) as f32 / 1000.
+		if time >= now {
+			time - now
 		} else {
-			(now - time) as f32 / -1000.
+			now - time
 		}
 	}
 
@@ -478,33 +478,43 @@ impl Scene for KeyOverlayScene {
 				for time in column.times.iter().copied() {
 					match opt_prev_time {
 						Some(prev_time) => {
-							let base_pos = key_rect.anchor(match self.direction {
-								ScrollDirection::Up => Anchor::TL,
-								ScrollDirection::Down => Anchor::BL,
-							});
+							let rect = {
+								let base_pos = key_rect.anchor(match self.direction {
+									ScrollDirection::Up => Anchor::TL,
+									ScrollDirection::Down => Anchor::BL,
+								});
 
-							let time_secs = self.time_to_secs(time);
-							let prev_time_secs = self.time_to_secs(prev_time);
+								let this_time = self.duration_since_now(time);
+								let prev_time = self.duration_since_now(prev_time);
+								let now_time = self.duration_since_now(self.now);
 
-							let h = ((time_secs - prev_time_secs) * self.speed).min(viewport.y);
-							let y = (prev_time_secs - self.time_to_secs(self.now)) * self.speed;
-							let y = match self.direction {
-								ScrollDirection::Up => base_pos.y + y,
-								ScrollDirection::Down => base_pos.y - y - h,
-							};
+								let y_start = (this_time - now_time).as_secs_f32() * self.speed;
+								let y_end = (prev_time - now_time).as_secs_f32() * self.speed;
 
-							// stop drawing rectangles once off-screen
-							if y <= 0. || y + h >= viewport.y {
-								break;
-							}
+								// stop drawing rectangles once off-screen
+								if y_end >= viewport.y {
+									break;
+								}
 
-							drawer.draw_rect(&RectBlueprint {
-								rect: Rect {
+								// clamp coordinates to avoid floating point glitches
+								let y_start = y_start.clamp(0.0, viewport.y);
+								let y_end = y_end.clamp(0.0, viewport.y);
+
+								let (y, h) = match self.direction {
+									ScrollDirection::Up => (-y_start, y_start - y_end),
+									ScrollDirection::Down => (y_start, y_end - y_start),
+								};
+
+								Rect {
 									x: base_pos.x,
-									y,
+									y: base_pos.y + y,
 									w: key_size.x,
 									h,
-								},
+								}
+							};
+
+							drawer.draw_rect(&RectBlueprint {
+								rect,
 								color: column.props.color,
 								border_color: 0x000000,
 								border_width: 0.,
