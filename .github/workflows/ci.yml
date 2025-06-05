@@ -29,17 +29,20 @@ jobs:
         with:
           targets: ${{ matrix.config.target }}
 
-      - name: Install X11 on Linux
+      - name: Update Ubuntu
         if: matrix.config.os == 'ubuntu-latest'
-        run: sudo apt install xorg xorg-dev libx11-dev
+        run: sudo apt-get update
 
       - name: Setup aarch64
         if: matrix.config.target == 'aarch64-unknown-linux-gnu'
         run: |
-          sudo apt update
-          sudo apt install gcc-aarch64-linux-gnu
+          sudo apt-get install gcc-aarch64-linux-gnu
           echo "[target.aarch64-unknown-linux-gnu]" >> ~/.cargo/config
           echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config
+
+      - name: Install X11 on Linux
+        if: matrix.config.os == 'ubuntu-latest'
+        run: sudo apt-get install xorg xorg-dev libx11-dev
 
       - name: Build OwOverlay (Release)
         run: cargo build --release
