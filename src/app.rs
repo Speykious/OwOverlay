@@ -3,12 +3,14 @@ use loki_draw::drawer::Drawer;
 use loki_draw::OpenglDrawer;
 use winit::event::WindowEvent;
 use winit::event_loop::EventLoopWindowTarget;
+use winit::keyboard::ModifiersState;
 
 use crate::app_frame::App;
 use crate::Scene;
 
 pub struct OwOverlayApp<S: Scene> {
 	pub drawer: Option<OpenglDrawer>,
+	pub modifiers_state: ModifiersState,
 	pub viewport: Vec2,
 	pub scene: S,
 }
@@ -17,6 +19,7 @@ impl<S: Scene> OwOverlayApp<S> {
 	pub fn new(width: u32, height: u32, scene: S) -> Self {
 		Self {
 			drawer: None,
+			modifiers_state: ModifiersState::empty(),
 			viewport: vec2(width as f32, height as f32),
 			scene,
 		}
@@ -44,9 +47,15 @@ impl<S: Scene> App for OwOverlayApp<S> {
 		}
 	}
 
-	fn handle_window_event(&self, event: WindowEvent, elwt: &EventLoopWindowTarget<()>) {
+	fn handle_window_event(&mut self, event: WindowEvent, elwt: &EventLoopWindowTarget<()>) {
 		if event == WindowEvent::CloseRequested {
 			elwt.exit();
+		}
+
+		match event {
+			WindowEvent::KeyboardInput { event, .. } => self.scene.inapp_key_event(event, self.modifiers_state),
+			WindowEvent::ModifiersChanged(modifiers) => self.modifiers_state = modifiers.state(),
+			_ => (),
 		}
 	}
 }

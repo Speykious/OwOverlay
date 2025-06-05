@@ -21,7 +21,7 @@ pub trait App {
 	fn resume_window(&mut self);
 	fn resize(&mut self, width: i32, height: i32);
 	fn draw(&mut self);
-	fn handle_window_event(&self, event: WindowEvent, window_target: &EventLoopWindowTarget<()>);
+	fn handle_window_event(&mut self, event: WindowEvent, window_target: &EventLoopWindowTarget<()>);
 }
 
 pub struct AppFrame {
@@ -149,9 +149,6 @@ impl AppFrame {
 		self.event_loop.run(move |event, window_target| {
 			match event {
 				Event::Resumed => {
-					#[cfg(android_platform)]
-					println!("Android window available");
-
 					let window = self.window.take().unwrap_or_else(|| {
 						let window_builder = self.window_builder.clone();
 						glutin_winit::finalize_window(window_target, window_builder, &self.gl_config).unwrap()
@@ -191,8 +188,6 @@ impl AppFrame {
 				Event::Suspended => {
 					// This event is only raised on Android, where the backing NativeWindow for a GL
 					// Surface can appear and disappear at any moment.
-					#[cfg(android_platform)]
-					println!("Android window removed");
 
 					// Destroy the GL Surface and un-current the GL Context before ndk-glue releases
 					// the window back to the system.

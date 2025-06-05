@@ -3,32 +3,35 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::error::Error;
 use std::path::PathBuf;
 use std::sync::mpsc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use std::{fs, io, thread};
 
 use app::OwOverlayApp;
 use app_frame::AppFrame;
 use clap::Parser;
 use config::{BoxPlacement, ColumnProps, Config, ScrollDirection};
-use layout::{Anchor, OwoRect};
 use glam::{vec2, Vec2};
 use key::display_key;
+use layout::{Anchor, OwoRect};
 use loki_draw::drawer::{Drawer, RectBlueprint, TextBlueprint};
 use loki_draw::font::Font;
 use loki_draw::rect::Rect;
 use winit::dpi::PhysicalSize;
+use winit::event::ElementState;
+use winit::keyboard::ModifiersState;
 use winit::window::WindowBuilder;
 
 mod app;
 mod app_frame;
 mod config;
-mod layout;
 mod key;
+mod layout;
 
 const ROBOTO_FONT: &[u8] = include_bytes!("../assets/Roboto-Regular.ttf");
 
 pub trait Scene {
 	fn update(&mut self);
+	fn inapp_key_event(&mut self, event: winit::event::KeyEvent, modifiers: ModifiersState);
 	fn draw(&self, viewport: Vec2, drawer: &mut impl Drawer);
 }
 
@@ -126,6 +129,11 @@ struct KeyOverlayScene {
 	keyboard_rx: mpsc::Receiver<KeyEvent>,
 	now: SystemTime,
 
+	debug_mode: bool,
+	frame_count: u64,
+	frame_deltas: VecDeque<Duration>,
+	debug_texts: Vec<String>,
+
 	speed: f32,
 	direction: ScrollDirection,
 	display_keys: bool,
@@ -164,6 +172,11 @@ impl KeyOverlayScene {
 			keyboard_rx,
 			now: SystemTime::now(),
 
+			debug_mode: false,
+			frame_count: 0,
+			frame_deltas: VecDeque::new(),
+			debug_texts: Vec::new(),
+
 			speed: config.speed as f32,
 			direction: config.direction,
 			display_keys: config.display_keys,
@@ -199,10 +212,45 @@ impl Scene for KeyOverlayScene {
 			column.set_key_pressed(key_event);
 		}
 
+		if self.debug_mode {
+			while self.frame_deltas.len() >= 60 {
+				self.frame_deltas.pop_front();
+			}
+			self.frame_deltas.push_back(self.now.elapsed().unwrap());
+
+			if self.frame_count % 100 == 0 {
+				let avg_delta = self.frame_deltas.iter().sum::<Duration>() / self.frame_deltas.len().max(1) as u32;
+				self.debug_texts = vec![
+					format!(
+						"SystemTime count: {}",
+						(self.columns.iter())
+							.map(|c| c.times.len().to_string())
+							.collect::<Vec<_>>()
+							.join(" | ")
+					),
+					format!("Frame performance: {:.2?}", avg_delta),
+				];
+			}
+		}
 		self.now = SystemTime::now();
+
+		self.frame_count += 1;
+	}
+
+	fn inapp_key_event(&mut self, event: winit::event::KeyEvent, modifiers: ModifiersState) {
+		if modifiers.control_key()
+			&& event.state == ElementState::Released
+			&& event.logical_key.as_ref() == winit::keyboard::Key::Character("d")
+			&& !event.repeat
+		{
+			self.debug_mode = !self.debug_mode
+		}
 	}
 
 	fn draw(&self, viewport: Vec2, drawer: &mut impl Drawer) {
+		let mut drawn_rects = 0;
+		let mut drawn_texts = 0;
+
 		drawer.clear();
 		drawer.begin_frame();
 		{
@@ -245,6 +293,7 @@ impl Scene for KeyOverlayScene {
 					borders: [true, true, true, true],
 					alpha: 1.,
 				});
+				drawn_rects += 1;
 
 				// key and counter texts
 				{
@@ -414,10 +463,12 @@ impl Scene for KeyOverlayScene {
 
 					if self.display_keys {
 						drawer.draw_text(&key_text);
+						drawn_texts += 1;
 					}
 
 					if self.display_counters {
 						drawer.draw_text(&counter_text);
+						drawn_texts += 1;
 					}
 				}
 
@@ -438,9 +489,9 @@ impl Scene for KeyOverlayScene {
 							let h = ((time_secs - prev_time_secs) * self.speed).min(viewport.y);
 							let y = (prev_time_secs - self.time_to_secs(self.now)) * self.speed;
 							let y = match self.direction {
-									ScrollDirection::Up => base_pos.y + y,
-									ScrollDirection::Down => base_pos.y - y - h,
-								};
+								ScrollDirection::Up => base_pos.y + y,
+								ScrollDirection::Down => base_pos.y - y - h,
+							};
 
 							// stop drawing rectangles once off-screen
 							if y <= 0. {
@@ -461,11 +512,58 @@ impl Scene for KeyOverlayScene {
 								borders: [false, false, false, false],
 								alpha: column.props.alpha,
 							});
+							drawn_rects += 1;
 
 							opt_prev_time = None;
 						}
 						None => opt_prev_time = Some(time),
 					}
+				}
+			}
+
+			if self.debug_mode {
+				drawn_texts += 2;
+
+				let line_spacing = 15.0;
+				let total_text_height = line_spacing * (self.debug_texts.len() as f32 + 1.0);
+				let start_y = match self.direction {
+					ScrollDirection::Up => 5.0,
+					ScrollDirection::Down => viewport.y - 5.0 - total_text_height,
+				};
+
+				drawer.draw_rect(&RectBlueprint {
+					rect: Rect::new(0.0, start_y - 5.0, viewport.x, total_text_height + 10.0),
+					color: 0x000000,
+					border_color: 0x000000,
+					border_width: 0.0,
+					corner_radius: 0.0,
+					borders: [false, false, false, false],
+					alpha: 1.0,
+				});
+
+				let debug_text = format!("Drawn | Rectangles = {} | Texts = {}", drawn_rects, drawn_texts);
+				drawer.draw_text(&TextBlueprint {
+					text: &debug_text,
+					x: 5.0,
+					y: start_y,
+					font: &self.default_font,
+					size: 15.,
+					col: 0x64ff64,
+					alpha: 1.,
+				});
+
+				let debug_text_start_y = start_y + line_spacing;
+
+				for (i, debug_text) in self.debug_texts.iter().enumerate() {
+					drawer.draw_text(&TextBlueprint {
+						text: debug_text,
+						x: 5.0,
+						y: debug_text_start_y + i as f32 * line_spacing,
+						font: &self.default_font,
+						size: 15.,
+						col: 0x64ff64,
+						alpha: 1.,
+					});
 				}
 			}
 		}
