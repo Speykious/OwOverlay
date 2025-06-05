@@ -669,6 +669,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	let app_frame = AppFrame::init(
 		WindowBuilder::new()
+			.with_title("OwOverlay")
 			.with_transparent(config.window.transparent)
 			.with_resizable(config.window.resizable)
 			.with_inner_size(PhysicalSize::new(width, height)),
