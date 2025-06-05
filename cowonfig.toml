@@ -1,4 +1,4 @@
-# Scroll speed in pixels
+# Scroll speed in pixels per second
 speed = 727
 
 # Scroll direction: "up" or "down"
@@ -14,31 +14,44 @@ display_counters = true
 # Where the counter text is placed: "inside" or "outside" the key box
 counter_placement = "outside"
 
+# Gap between each key in pixels
+key_spacing = 10
+# Width of all keys in pixels, unless the key has its own width
+default_key_width = 100
+# Height of all keys in pixels
+key_height = 100
+
+
 [window]
 transparent = true
 resizable = false
 width = 420
 height = 690
 
+
 [[columns]]
+# Optional name (useful if you assign multiple keys)
+name = "<Q>"
+
 # Keys that trigger this column
-keys = ["KeyQ", "KeyA"]
+keys = ["KeyQ"]
 
 # Color of the rectangles (0xRRGGBB hex code) (defaults to 0x63ffec)
 color = 0xff6376
 
 # Color of the key box when pressed (defaults to 0x555555)
-# hover_color = 0x555555
+#hover_color = 0x555555
 
 # Color of the key box border (0xRRGGBB hex code) (defaults to 0xeeeeee)
 border_color = 0xff6376
 
 # Opacity of the rectangles (defaults to 0.5)
-# alpha = 0.5
+#alpha = 0.5
 
 # Same for other columns below
 
 [[columns]]
+name = "WSX"
 keys = ["KeyW", "KeyS", "KeyX"]
 color = 0x63ffec
 border_color = 0x63ffec

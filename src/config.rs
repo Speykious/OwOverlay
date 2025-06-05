@@ -45,9 +45,6 @@ pub struct Config {
 	#[serde(default)]
 	pub direction: ScrollDirection,
 
-	#[serde(default)]
-	pub window: WindowProps,
-
 	#[serde(default = "default::yes")]
 	pub display_keys: bool,
 	#[serde(default = "default::config::key_placement")]
@@ -64,6 +61,9 @@ pub struct Config {
 	pub default_key_width: u32,
 	#[serde(default = "default::config::key_height")]
 	pub key_height: u32,
+
+	#[serde(default)]
+	pub window: WindowProps,
 
 	pub columns: Vec<ColumnProps>,
 }
