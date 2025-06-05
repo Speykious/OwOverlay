@@ -494,7 +494,7 @@ impl Scene for KeyOverlayScene {
 							};
 
 							// stop drawing rectangles once off-screen
-							if y <= 0. {
+							if y <= 0. || y + h >= viewport.y {
 								break;
 							}
 
